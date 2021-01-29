@@ -1,0 +1,84 @@
+# required tools in path
+# - cutadapt, Bowtie2, sambamba, deepTools
+import glob, os, yaml
+
+def setToDict(thisSet):
+    thisDict = {}
+    for item0 in thisSet:
+        thisDict[os.path.basename(item0)] = item0
+    return(thisDict)
+
+maindir = os.path.abspath(workflow.basedir)
+# configfile: None
+
+print(maindir)
+
+print(config)
+
+# config=dict()
+# config['fastq_directory']="/data/processing4/rauer/iovinos/GROseq_cerere2019/GROseq_Drosophila_embryos_20190921_test/"
+# config['bowtie2_index']=os.path.join(maindir, "resources","dm3_ensembl78.bowtie2")
+# config['annotation_gtf']=os.path.join(maindir, "resources","dm3_ensembl78.gtf")
+# config['bowtie2_index']=os.path.join(maindir, "resources","dm6_ensembl91.bowtie2")
+# config['annotation_gtf']=os.path.join(maindir, "resources","dm6_ensembl91.gtf")
+# config['sequencing_adapter']="TGGAATTCTCGGGTGCCAAGG"
+# config['adapter_sequence']="TGGAATTCTCGGGTGCCAAGG"
+config['fastq_directory']='Fastq'
+
+# config['bamCoverage_ignoreChroms'] = '2LHet 2RHet 3LHet 3RHet U Uextra XHet YHet dmel_mitochondrion_genome'
+
+# option parameters
+samplenames, = glob_wildcards(os.path.join(config["fastq_directory"],'{sample}.fastq.gz'))
+samplenames.sort()
+print(samplenames)
+
+assert len(samplenames) > 0, 'No samples found. Exit...'
+
+include: os.path.join(maindir, "rules", "annotations.snakefile")
+
+include: os.path.join(maindir, "rules","processing.snakefile")
+
+include: os.path.join(maindir, "rules", "deeptools.snakefile")
+
+include: os.path.join(maindir, "rules", "expression_analysis.snakefile")
+
+include: os.path.join(maindir, "rules", "visualization.snakefile")
+
+include: os.path.join(maindir, "rules", "quality_control.snakefile")
+
+rule all:
+    input:
+        "config.yaml",
+
+        expand(os.path.join("fastq_trimmed","{sample}.fastq.gz"), sample = samplenames),
+        # expand(os.path.join("Pol2reads","fastq_trimmed","{sample}.fastq.gz"), sample = samplenames),
+        expand(os.path.join("bam_umi_dedup","{sample}.bam"),  sample = samplenames),
+        expand(os.path.join("{bam_folder}","{sample}.bam.bai"),  bam_folder = ["bam_umi_dedup","Bowtie2"],  sample = samplenames),
+        expand(os.path.join("{bam_folder}","{sample}.flagstat"),  bam_folder = ["bam_umi_dedup","Bowtie2"], sample = samplenames),
+
+        expand(os.path.join("deeptools","estimateReadFiltering.{dedup}.tsv"), dedup = 'Bowtie2'),
+
+        expand(os.path.join("bamCoverage","{sample}.{bam_folder}.coverage_raw.{strand}.bw"),  bam_folder = ['bam_umi_dedup'], sample = samplenames, strand = ['both','forward','reverse']),
+        expand(os.path.join("bamCoverage","{sample}.{bam_folder}.coverage_mapq.{strand}.bw"),  bam_folder = ['bam_umi_dedup'], sample = samplenames, strand = ['both','forward','reverse']),
+        expand(os.path.join("bamCoverage","{sample}.{bam_folder}.{normalization}_mapq.{strand}.bw"),  bam_folder = ['bam_umi_dedup'], sample = samplenames, strand = ['both','forward','reverse'], normalization = ['CPM']),
+        #
+        expand(os.path.join("featureCounts","GRO-seq.featureCounts.mapq{mapq}.tsv"), mapq = config['mapq_filter']),
+        expand(os.path.join("featureCounts_dedup","GRO-seq.featureCounts.mapq{mapq}.tsv"), mapq = config['mapq_filter']),
+        # # deeptools QC
+        expand(os.path.join("deeptools","plotCorrelation.{dedup}.png"),  dedup = 'bam_umi_dedup'),
+        expand(os.path.join("deeptools","plotPCA.{dedup}.png"),  dedup = 'bam_umi_dedup'),
+        expand(os.path.join("deeptools","plotFingerprint.{dedup}.png"),  dedup = 'bam_umi_dedup'),
+        expand(os.path.join("deeptools","plotEnrichment.{dedup}.png"),  dedup = "bam_umi_dedup"),
+
+        # directory(os.path.join("Multiqc"))
+        # # viz
+        expand(os.path.join("deeptools_visualization","heatmap_genes.{dedup}.png"), dedup = ["bam_umi_dedup","filtered_bam"]),
+        # expand(os.path.join("featureCounts","GRO-seq.featureCounts.mapq{mapq}.tsv"), mapq = [0, config['mapq_filter'], 5]),
+        # expand(os.path.join("DEseq2","GRO-seq.mapq{mapq}.DESeq2.tsv"), mapq = [0, config['mapq_filter'], 5]),
+        #
+        # # expand(os.path.join("Pol2reads","Peak_calling","Peaks_promoter","{sample}_promoterpeaks.narrowPeak"), sample = samplenames)
+        # expand(os.path.join('Pausing','GROseq_pausing.DONE'))
+
+        expand(os.path.join('{folder}',"{sample}_fastqc.html"), folder = ["Fastq"], sample = samplenames),
+        os.path.join('Fastq_multiqc','multiqc_report.html'),
+        os.path.join("Multiqc","multiqc_report.html")

@@ -1,0 +1,9 @@
+bowtie2_index: /data/processing4/rauer/iovinos/GROseq_cerere2019/GROseq_snakemake/resources/dm6.bowtie2
+genome_index: /data/repository/organisms/dm6_ensembl/genome_fasta/genome.fa.fai
+annotation_gtf: /data/processing4/rauer/iovinos/GROseq_cerere2019/GROseq_snakemake/resources/dm6_ensembl96.gtf
+adapter_sequence: TGGAATTCTCGGGTGCCAAGG
+mapq_filter: 3
+genome_size: 142573017
+
+# rule deeptools bamCoverage
+chroms_ignore: /data/processing4/rauer/iovinos/GROseq_cerere2019/GROseq_snakemake/resources/dm6.chrom_exclude

@@ -1,0 +1,4 @@
+bowtie2_index:
+annotation_gtf:
+adapter_sequence: TGGAATTCTCGGGTGCCAAGG
+mapq_filter:
